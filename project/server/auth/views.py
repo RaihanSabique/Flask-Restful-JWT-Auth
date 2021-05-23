@@ -6,7 +6,7 @@ from flask.views import MethodView
 
 from project.server import bcrypt, db
 from project.server.models import User, BlacklistToken
-
+from project.server.auth.wrapper import login_required, admin_required
 auth_blueprint = Blueprint('auth', __name__)
 
 
@@ -14,15 +14,16 @@ class RegisterAPI(MethodView):
     """
     User Registration Resource
     """
-
     def post(self):
         # get the post data
         post_data = request.get_json()
         # check if user already exists
+        print(post_data.get('email'))
         user = User.query.filter_by(email=post_data.get('email')).first()
         if not user:
             try:
                 user = User(
+                    username=post_data.get('username'),
                     email=post_data.get('email'),
                     password=post_data.get('password')
                 )
@@ -178,12 +179,16 @@ class LogoutAPI(MethodView):
             }
             return make_response(jsonify(responseObject)), 403
 
+class CheckJWT(MethodView):
+    @login_required
+    def get(self, user):
+        return jsonify({'msg': user.username})
 # define the API resources
 registration_view = RegisterAPI.as_view('register_api')
 login_view = LoginAPI.as_view('login_api')
 user_view = UserAPI.as_view('user_api')
 logout_view = LogoutAPI.as_view('logout_api')
-
+check_view = CheckJWT.as_view('check_jwt_api')
 # add Rules for API Endpoints
 auth_blueprint.add_url_rule(
     '/auth/register',
@@ -204,4 +209,9 @@ auth_blueprint.add_url_rule(
     '/auth/logout',
     view_func=logout_view,
     methods=['POST']
+)
+auth_blueprint.add_url_rule(
+    '/auth/check',
+    view_func=check_view,
+    methods=['GET']
 )
